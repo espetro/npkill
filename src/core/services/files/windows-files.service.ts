@@ -8,13 +8,16 @@ import { rm } from 'fs/promises';
 export class WindowsFilesService extends FileService {
   constructor(
     private readonly streamService: StreamService,
-    public override fileWorkerService: FileWorkerService,
+    // Plain constructor parameter (no modifier): the field is inherited from
+    // `FileService` and redeclaring it with a modifier is a scriptc blocker.
+    fileWorkerService: FileWorkerService,
   ) {
     super(fileWorkerService);
   }
 
-  async delete(path: string): Promise<boolean> {
-    await rm(path, { recursive: true, force: true });
-    return true;
+  // Non-async override (see UnixFilesService.delete): scriptc's native target
+  // refuses async overrides of non-async methods; behavior is identical.
+  delete(path: string): Promise<boolean> {
+    return rm(path, { recursive: true, force: true }).then(() => true);
   }
 }

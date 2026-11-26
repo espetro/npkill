@@ -257,9 +257,11 @@ export abstract class FileService implements IFileService {
           }
           files = [
             ...files,
-            ...(await this.getFileStatsInDir(join(dirname, item.name)).catch(
-              () => [],
-            )),
+            // Typed fallback so the spread always sees the same element type
+            // as `files` (scriptc only lowers same-element-type array spreads).
+            ...(await this.getFileStatsInDir(
+              join(dirname, item.name),
+            ).catch((): IFileStat[] => [])),
           ];
         } else {
           try {
