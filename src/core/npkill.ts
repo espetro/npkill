@@ -16,6 +16,11 @@ import {
   DeleteOptions,
   DeleteResult,
 } from './interfaces/target.interface.js';
+import {
+  FileService,
+  UnixFilesService,
+  WindowsFilesService,
+} from './services/files/index.js';
 import { OSServiceMap } from '../constants/os-service-map.constants.js';
 import {
   ValidateRootResult,
@@ -218,13 +223,32 @@ function createDefaultServices(
   const streamService = new StreamService();
   const profilesService = new ProfilesService();
 
-  const OSService = OSServiceMap[process.platform];
-  if (typeof OSService === 'undefined') {
-    throw new Error(
-      `Unsupported platform: ${process.platform}. Cannot load OS service.`,
-    );
+  // Construct the OS-specific file service statically. scriptc's native
+  // (ELF) target cannot lower `new` through a dynamically-resolved class
+  // value (`OSServiceMap[process.platform]`), and a static switch over
+  // `process.platform` is equivalent because the platform is fixed for the
+  // lifetime of the process. OSServiceMap stays exported for API consumers.
+  let fileService: FileService;
+  switch (process.platform) {
+    case 'win32':
+      fileService = new WindowsFilesService(
+        streamService,
+        actualFileWorkerService,
+      );
+      break;
+    case 'linux':
+    case 'android':
+    case 'darwin':
+      fileService = new UnixFilesService(
+        streamService,
+        actualFileWorkerService,
+      );
+      break;
+    default:
+      throw new Error(
+        `Unsupported platform: ${process.platform}. Cannot load OS service.`,
+      );
   }
-  const fileService = new OSService(streamService, actualFileWorkerService);
 
   return {
     logger: actualLogger,
