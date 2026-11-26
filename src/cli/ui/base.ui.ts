@@ -62,9 +62,13 @@ export abstract class BaseUi {
   }
 
   get terminal(): { columns: number; rows: number } {
+    // `process.stdout.columns/rows` are `undefined` when stdout is not a TTY
+    // (both under Node and scriptc's runtime). Fall back to the conventional
+    // 80x24 size so layout code always sees numbers; previously a non-TTY
+    // render path spread `undefined` into the arithmetic as NaN.
     return {
-      columns: this.stdout.columns,
-      rows: this.stdout.rows,
+      columns: this.stdout.columns ?? 80,
+      rows: this.stdout.rows ?? 24,
     };
   }
 

@@ -25,6 +25,18 @@ interface OptionItem<K extends keyof IConfig = keyof IConfig> {
 }
 
 export class OptionsUi extends BaseUi implements InteractiveUi {
+  /**
+   * Stringify an option value for display/editing. Option values are typed
+   * `IConfig[K]`, whose union contains object arms (e.g. `targets`); scriptc's
+   * native lowering only converts unions of primitive arms to string, so
+   * narrow to the primitive arms first (all real option values are primitive
+   * at runtime — `targets` entries are handled separately above).
+   */
+  private stringifyValue(value: IConfig[keyof IConfig]): string {
+    const v = value as string | number | boolean | undefined | null;
+    return v === undefined || v === null ? '' : String(v);
+  }
+
   resultIndex = 0;
   readonly goBack$ = new Subject<null>();
   readonly goToHelp$ = new Subject<null>();
@@ -158,7 +170,7 @@ export class OptionsUi extends BaseUi implements InteractiveUi {
     } else if (opt.type === 'input') {
       this.isEditing = true;
       // Convertir el valor existente a string para el buffer de edición
-      this.editBuffer = String(opt.value);
+      this.editBuffer = this.stringifyValue(opt.value);
       this.render();
     }
   }
@@ -300,14 +312,14 @@ export class OptionsUi extends BaseUi implements InteractiveUi {
       if (opt.type === 'checkbox') {
         valueText = opt.value ? '[x]' : '[ ]';
       } else if (opt.type === 'dropdown') {
-        valueText = `${opt.value}`;
+        valueText = this.stringifyValue(opt.value);
       } else if (opt.type === 'input') {
         valueText =
           this.isEditing && isSelected
             ? this.editBuffer + '_'
-            : String(opt.value) === ''
+            : this.stringifyValue(opt.value) === ''
               ? 'none'
-              : String(opt.value);
+              : this.stringifyValue(opt.value);
       }
 
       // Move the options down to prevent the values from overlapping.
@@ -331,7 +343,7 @@ export class OptionsUi extends BaseUi implements InteractiveUi {
         let chunkText = chunk;
         if (
           opt.type === 'input' &&
-          String(opt.value) === '' &&
+          this.stringifyValue(opt.value) === '' &&
           chunk === 'none'
         ) {
           chunkText = pc.gray(chunk);
