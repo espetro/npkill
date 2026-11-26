@@ -59,6 +59,11 @@ export class ConsoleService {
     textToReplace: string | RegExp,
     replaceValue: string,
   ): string {
+    // Narrow the `string | RegExp` union before `.replace`: scriptc's native
+    // lowering handles each primitive search value kind separately.
+    if (typeof textToReplace === 'string') {
+      return text.replace(textToReplace, replaceValue);
+    }
     return text.replace(textToReplace, replaceValue);
   }
 
