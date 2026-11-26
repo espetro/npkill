@@ -134,18 +134,25 @@ class SizeCalculator {
   ): Promise<void> {
     this.updateProcs(1);
     const emitResult = (size: number, error?: string): void => {
-      this.events.emit('sizeResult', {
+      // One shared type for every `sizeResult` emit/listener site.
+      const payload: WorkerSizeResult = {
         id: sizeRequestId,
         path,
         size,
         error,
-      });
+      };
+      this.events.emit('sizeResult', payload);
     };
 
     try {
       const stats = await lstat(path);
       if (!stats.isDirectory()) {
-        emitResult(this.getDiskUsage(stats));
+        // Inlined from `getDiskUsage`: scriptc's native target cannot convert
+        // `fs.Stats` instances into the `unknown` slot a private-method call
+        // would need; reading the supported fields directly is identical.
+        emitResult(
+          typeof stats.blocks === 'number' ? stats.blocks * 512 : stats.size,
+        );
         return;
       }
       await access(path, constants.R_OK | constants.X_OK);
@@ -199,7 +206,11 @@ class SizeCalculator {
                 directoriesToProcess.push(fullPath);
               } else {
                 const stats = await lstat(fullPath);
-                currentLevelSize += this.getDiskUsage(stats);
+                // Inlined from `getDiskUsage` (see runGetSize above).
+                currentLevelSize +=
+                  typeof stats.blocks === 'number'
+                    ? stats.blocks * 512
+                    : stats.size;
               }
             } catch {
               // Ignore permissions errors.
@@ -232,10 +243,6 @@ class SizeCalculator {
     }
   }
 
-  private getDiskUsage(stats: Stats): number {
-    return typeof stats.blocks === 'number' ? stats.blocks * 512 : stats.size;
-  }
-
   private completeTask(): void {
     this.updateProcs(-1);
     this.processQueue();
@@ -258,11 +265,12 @@ class SizeCalculator {
           this.runGetSize(task.path, task.sizeRequestId).catch(() => {
             // If runGetSize fails, we need to emit a size of 0
             // Otherwise the stream will hang forever
-            this.events.emit('sizeResult', {
+            const payload: WorkerSizeResult = {
               id: task.sizeRequestId,
               path: task.path,
               size: 0,
-            });
+            };
+            this.events.emit('sizeResult', payload);
           });
           break;
         case ETaskOperation.getSizeChild:

@@ -1,5 +1,5 @@
 import os from 'os';
-import { dirname, extname } from 'path';
+
 
 import { Worker, MessageChannel, MessagePort } from 'worker_threads';
 import { Subject } from 'rxjs';
@@ -29,7 +29,10 @@ export interface WorkerScanRequest {
 }
 
 export interface WorkerSizeResult {
-  id: number;
+  // `number | undefined`: the worker emits size results even when no request
+  // id was attached, and every emit site / listener of the `sizeResult` event
+  // must agree on one argument tuple (scriptc native target requirement).
+  id: number | undefined;
   path: string;
   size: number;
   error?: string;
@@ -215,7 +218,10 @@ export class FileWorkerService {
   }
 
   private settleSizeRequest(
-    id: number,
+    // `number | undefined`: worker size results can carry no request id
+    // (mirrors `WorkerSizeResult.id`); an undefined id matches no pending
+    // request, so behavior is unchanged.
+    id: number | undefined,
     result: { size?: number; error?: string },
   ): void {
     const index = this.sizeRequests.findIndex((request) => request.id === id);
@@ -273,7 +279,12 @@ export class FileWorkerService {
     this.logger.info(`Instantiating ${amount} workers..`);
     for (let i = 0; i < amount; i++) {
       const { port1, port2 } = new MessageChannel();
-      const worker = new Worker(this.getWorkerPath());
+      // Inline, statically analyzable specifier: TypeScript's ESM convention
+      // maps the `.js` extension to the sibling `.ts` source under ts-node/esm
+      // and to the compiled `.js` sibling in the lib/ build; scriptc resolves
+      // it to a statically compiled source file for the native (ELF) target.
+      // The previous `import.meta.url`-derived dynamic path refused to lower.
+      const worker = new Worker(new URL('./files.worker.js', import.meta.url));
       port1.on('message', (message: WorkerMessage) =>
         this.onWorkerMessage(message),
       );
@@ -327,17 +338,6 @@ export class FileWorkerService {
       this.searchStatus.completedSearchTasks = scan.sharedScan.explored;
     }
     this.searchStatus.workersJobs = this.workersPendingJobs;
-  }
-
-  private getWorkerPath(): URL {
-    const actualFilePath = import.meta.url;
-    const dirPath = dirname(actualFilePath);
-    // Extension = .ts if is not transpiled.
-    // Extension = .js if is a build
-    const extension = extname(actualFilePath);
-    const workerName = 'files.worker';
-
-    return new URL(`${dirPath}/${workerName}${extension}`);
   }
 
   private getOptimalNumberOfWorkers(): number {

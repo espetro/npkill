@@ -130,7 +130,14 @@ export class SharedScan {
     const wakeUps = Atomics.load(this.header, WAKE_UPS);
     Atomics.add(this.header, IDLE_WORKERS, 1);
     if (this.isEmpty() && this.isRunning()) {
-      await Atomics.waitAsync(this.header, WAKE_UPS, wakeUps).value;
+      // Blocking wait until `wakeAll()` bumps WAKE_UPS (and notifies). This
+      // replaced `Atomics.waitAsync`, which scriptc's native (ELF) target
+      // cannot lower yet. Blocking is safe here: `waitForWork` runs on worker
+      // threads only, every state transition (`give`, `completeFolder`,
+      // `stop`) notifies, and `Atomics.wait` returns immediately ("not-equal")
+      // if WAKE_UPS changed between the load above and the wait, so the
+      // wake/wait race is handled by the primitive itself.
+      Atomics.wait(this.header, WAKE_UPS, wakeUps);
     }
     Atomics.sub(this.header, IDLE_WORKERS, 1);
   }
