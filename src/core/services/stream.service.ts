@@ -1,6 +1,5 @@
 import { ChildProcessWithoutNullStreams } from 'child_process';
 import { Observable } from 'rxjs';
-import { STREAM_ENCODING } from '../../constants/index.js';
 
 /**
  * Service for converting child process streams into RxJS observables.
@@ -37,15 +36,10 @@ export class StreamService {
   }
 
   getStream<T>(child: ChildProcessWithoutNullStreams): Observable<T> {
-    this.setEncoding(child, STREAM_ENCODING);
+    // Literal encoding spellings only: scriptc lowers `setEncoding` for
+    // literals, not for a `BufferEncoding`-typed variable (SC2020).
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
     return this.streamToObservable<T>(child);
-  }
-
-  private setEncoding(
-    child: ChildProcessWithoutNullStreams,
-    encoding: BufferEncoding,
-  ): void {
-    child.stdout.setEncoding(encoding);
-    child.stderr.setEncoding(encoding);
   }
 }

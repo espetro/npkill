@@ -193,9 +193,9 @@ export const DEFAULT_PROFILES: Readonly<Record<string, Profile>> =
 function freezeProfiles(
   profiles: Record<string, Profile>,
 ): Readonly<Record<string, Profile>> {
-  Object.values(profiles).forEach((profile) => {
-    Object.freeze(profile.targets);
-    Object.freeze(profile);
-  });
-  return Object.freeze(profiles);
+  // The Readonly<> type keeps the compile-time guarantee. The runtime
+  // Object.freeze() calls are omitted because scriptc's native (ELF) target
+  // cannot lower freeze of an aliased value (fresh literals only), and the
+  // frozen-ness is unobservable: nothing in npkill mutates profiles.
+  return profiles;
 }
