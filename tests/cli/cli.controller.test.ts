@@ -23,6 +23,14 @@ import { ProfilesService } from '../../src/core/services/profiles.service.js';
 import { DEFAULT_CONFIG } from '../../src/constants/main.constants.js';
 
 const setDeleteAllWarningVisibilityMock = jest.fn();
+const openFolderSubscribeMock =
+  jest.fn<(next: (path: string) => void) => void>();
+const openExplorerMock =
+  jest.fn<(path: string, callback: (error: Error) => void) => void>();
+
+jest.unstable_mockModule('open-file-explorer', () => ({
+  default: openExplorerMock,
+}));
 
 jest.unstable_mockModule(
   '../../src/cli/ui/components/header/header.ui.js',
@@ -55,7 +63,7 @@ jest.unstable_mockModule('../../src/cli/ui/components/results.ui.js', () => ({
   ResultsUi: jest.fn(() => ({
     delete$: new Subject<DeleteResult>(),
     showErrors$: { subscribe: jest.fn() },
-    openFolder$: { subscribe: jest.fn() },
+    openFolder$: { subscribe: openFolderSubscribeMock },
     showDetails$: { subscribe: jest.fn() },
     endNpkill$: { subscribe: jest.fn() },
     search$: { subscribe: jest.fn() },
@@ -341,6 +349,20 @@ describe('CliController test', () => {
       cliController.init();
       expect(exitWithErrorSpy).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('Should log an error when the folder cannot be opened', () => {
+    openExplorerMock.mockImplementationOnce((_path, callback) =>
+      callback(new Error('spawn xdg-open ENOENT')),
+    );
+    cliController.init();
+    const openFolder = openFolderSubscribeMock.mock.calls[0][0];
+
+    openFolder('/projects/app');
+
+    expect(loggerServiceMock.error).toHaveBeenCalledWith(
+      'Could not open /projects/app: spawn xdg-open ENOENT',
+    );
   });
 
   describe('--delete-all', () => {

@@ -168,7 +168,7 @@ export class CliController {
     this.uiResults.delete$.subscribe((result) => this.deleteResult(result));
     this.uiResults.showErrors$.subscribe(() => this.showErrorPopup(true));
     this.uiLogs.close$.subscribe(() => this.showErrorPopup(false));
-    this.uiResults.openFolder$.subscribe((path) => openExplorer(path));
+    this.uiResults.openFolder$.subscribe((path) => this.openFolder(path));
     this.uiResults.showDetails$.subscribe((result) =>
       this.openResultsDetails(result),
     );
@@ -263,7 +263,7 @@ export class CliController {
     this.uiStats.reset();
     this.uiService.renderAll();
 
-    detailsUi.openFolder$.subscribe((path) => openExplorer(path));
+    detailsUi.openFolder$.subscribe((path) => this.openFolder(path));
     detailsUi.goBack$.subscribe(() => {
       detailsUi.clear();
       this.activeComponent = this.uiResults;
@@ -273,6 +273,14 @@ export class CliController {
       this.uiHeader.menuIndex$.next(MENU_BAR_OPTIONS.DELETE);
       this.uiStats.reset();
       this.uiService.renderAll();
+    });
+  }
+
+  private openFolder(path: string): void {
+    // The library calls this callback when the file explorer cannot be
+    // started, and throws if there is none.
+    openExplorer(path, (error: Error) => {
+      this.logger.error(`Could not open ${path}: ${error.message}`);
     });
   }
 
