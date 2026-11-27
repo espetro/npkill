@@ -32,6 +32,7 @@ const STOPPED = 2;
 
 const HEADER_BYTES = HEADER_FIELDS * Int32Array.BYTES_PER_ELEMENT;
 const LENGTH_BYTES = 4;
+const IDLE_POLL_MS = 2;
 // Round-trips any string. UTF-8 would replace unpaired surrogates.
 const ENCODING = 'utf16le';
 
@@ -130,14 +131,12 @@ export class SharedScan {
     const wakeUps = Atomics.load(this.header, WAKE_UPS);
     Atomics.add(this.header, IDLE_WORKERS, 1);
     if (this.isEmpty() && this.isRunning()) {
-      // Blocking wait until `wakeAll()` bumps WAKE_UPS (and notifies). This
-      // replaced `Atomics.waitAsync`, which scriptc's native (ELF) target
-      // cannot lower yet. Blocking is safe here: `waitForWork` runs on worker
-      // threads only, every state transition (`give`, `completeFolder`,
-      // `stop`) notifies, and `Atomics.wait` returns immediately ("not-equal")
-      // if WAKE_UPS changed between the load above and the wait, so the
-      // wake/wait race is handled by the primitive itself.
-      Atomics.wait(this.header, WAKE_UPS, wakeUps);
+      // Polls instead of `Atomics.waitAsync`, which scriptc cannot compile
+      // yet. The event loop must keep running while this worker is idle: it
+      // still handles messages and size requests.
+      while (Atomics.load(this.header, WAKE_UPS) === wakeUps) {
+        await new Promise<void>((resolve) => setTimeout(resolve, IDLE_POLL_MS));
+      }
     }
     Atomics.sub(this.header, IDLE_WORKERS, 1);
   }
