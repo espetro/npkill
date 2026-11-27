@@ -691,7 +691,7 @@ export class ResultsUi extends HeavyUi implements InteractiveUi {
   }
 
   private paintStatusPath(pathString: string, action: string): string {
-    const TRANSFORMATIONS = {
+    const TRANSFORMATIONS: Record<string, (text: string) => string> = {
       deleted: (text) =>
         text.replace(INFO_MSGS.DELETED, pc.green(INFO_MSGS.DELETED)),
       deleting: (text) =>
