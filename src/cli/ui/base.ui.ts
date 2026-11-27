@@ -10,6 +10,9 @@ export interface InteractiveUi {
   onKeyInput: (key: IKeyPress) => void;
 }
 
+// stdout reports no size when it is not a terminal, for example in a pipe.
+const FALLBACK_TERMINAL_SIZE = { columns: 80, rows: 24 };
+
 export abstract class BaseUi {
   public readonly id = Math.random().toString(36).substring(2, 10);
   public freezed = false;
@@ -63,8 +66,8 @@ export abstract class BaseUi {
 
   get terminal(): { columns: number; rows: number } {
     return {
-      columns: this.stdout.columns,
-      rows: this.stdout.rows,
+      columns: this.stdout.columns ?? FALLBACK_TERMINAL_SIZE.columns,
+      rows: this.stdout.rows ?? FALLBACK_TERMINAL_SIZE.rows,
     };
   }
 
