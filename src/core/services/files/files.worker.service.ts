@@ -1,6 +1,5 @@
 import os from 'os';
 
-
 import { Worker, MessageChannel, MessagePort } from 'worker_threads';
 import { Subject } from 'rxjs';
 import { LoggerService } from '../logger.service.js';
