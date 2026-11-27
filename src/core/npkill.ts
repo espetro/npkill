@@ -21,7 +21,6 @@ import {
   UnixFilesService,
   WindowsFilesService,
 } from './services/files/index.js';
-import { OSServiceMap } from '../constants/os-service-map.constants.js';
 import {
   ValidateRootResult,
   NpkillInterface,

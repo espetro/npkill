@@ -1,4 +1,4 @@
-import { constants, Stats } from 'fs';
+import { constants } from 'fs';
 import { access, lstat, readdir } from 'fs/promises';
 import EventEmitter from 'events';
 import {
